@@ -4,6 +4,7 @@ local screen = {}
 
 -- load required libraries
 local tween = require('../lib/tween')
+local cron  = require('../lib/cron')
 
 -- cache some class
 local wnd = love.window
@@ -19,11 +20,33 @@ local menu_items        = {'Play', 'High Score', 'Quit'}
 local menu_active_item  = 1
 
 -- some settings variable
-local menu_offset           = 220
-local selection_rect  = {Width = 200, Height = 40, Top = menu_offset + 40 * (menu_active_item - 1)}
+local menu_offset       = 220
+local selection_rect    = {Width = 200, Height = 40, Top = menu_offset + 40 * (menu_active_item - 1), Visible = true, State = 1}
 local rect_tween;
 
+-- cron values
+local selection_rect_blinker
+local select_item_timer
+
 ----------- [LOCAL FUNCTIONS] -----------
+
+-- Selects the currently highlighted menu item.
+function selectMenuItem()
+  if menu_active_item == 1 then
+    -- Play game
+    G_GAME_STATE = 2
+  elseif menu_active_item == 2 then
+    -- View High Score
+  elseif menu_active_item == 3 then
+    -- Exit game
+    love.event.quit()
+  end
+end
+
+-- Blink the selection rectangle.
+function blinkSelectionRect()
+  selection_rect.Visible = not selection_rect.Visible
+end
 
 -- Moves the actively selected menu item.
 function moveMenuSelection(dir)
@@ -52,7 +75,9 @@ end
 
 -- Screen load function
 function screen.load()
-
+  -- Setup crons
+  selection_rect_blinker = cron.every(0.1, blinkSelectionRect)
+  select_item_timer      = cron.after(.4, selectMenuItem)
 end
 
 -- Perform game logic here.
@@ -60,6 +85,12 @@ function screen.update(dt)
 
   if rect_tween ~= nil then
     rect_tween:update(dt)
+  end
+
+  -- run blink animation
+  if selection_rect.State == 0 then
+    selection_rect_blinker:update(dt)
+    select_item_timer:update(dt)
   end
 
 end
@@ -71,6 +102,8 @@ function screen.keypressed(key)
     moveMenuSelection(1)
   elseif kb.isDown('up') then
     moveMenuSelection(-1)
+  elseif kb.isDown('return') then
+    selection_rect.State = 0
   end
 
 end
@@ -82,7 +115,7 @@ function screen.draw(gfx)
   --gfx.setFont(_fDefault)
   gfx.setFont(_fWendySmall)
   for i = 1, table.getn(menu_items) do
-    if i == menu_active_item then
+    if i == menu_active_item and selection_rect.Visible then
       gfx.setColor(255, 255, 255)
       gfx.rectangle('fill', (gfx.getWidth() - selection_rect.Width) / 2, selection_rect.Top , selection_rect.Width, selection_rect.Height)
       gfx.setColor(0, 0, 0)
